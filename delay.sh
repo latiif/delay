@@ -28,8 +28,8 @@ def duration($finish; $start):
   | .[0]
   | .TrainAnnouncement
   | .[]
-  | select (.Advertised == true)
-  | select (.TimeAtLocation[:10] == $today ) # only check date YYYY-MM-dd
+  | select ( .Advertised == true )
+  | select ( .TimeAtLocation[:10] == $today ) # only check date YYYY-MM-dd
   | {
     delay: duration(.TimeAtLocation; .AdvertisedTimeAtLocation),
     should: .AdvertisedTimeAtLocation[11:-13], # only display HH:mm
