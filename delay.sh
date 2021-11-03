@@ -31,16 +31,18 @@ def duration($finish; $start):
   | select ( .Advertised == true )
   | select ( .TimeAtLocation[:10] == $today ) # only check date YYYY-MM-dd
   | {
+    owner: .TrainOwner,
     delay: duration(.TimeAtLocation; .AdvertisedTimeAtLocation),
     should: .AdvertisedTimeAtLocation[11:-13], # only display HH:mm
     actual: .TimeAtLocation[11:-13], # only display HH:mm
-    location: $trainStations[.LocationSignature],
+    location: $trainStationsInVG[.LocationSignature],
     link: "https://www.trafikverket.se/trafikinformation/tag/?Train=\(.AdvertisedTrainIdent)"
   }
+  | select ( .location != null )
   | select ( .delay >= 19 )
 EOT
 
-trainStations=$(curl -s 'https://api.trafikinfo.trafikverket.se/v2/data.json' -X POST \
+trainStationsInVG=$(curl -s 'https://api.trafikinfo.trafikverket.se/v2/data.json' -X POST \
 	-H 'User-Agent: Mozilla/5.0 (X11; Ubuntu; Linux x86_64; rv:93.0) Gecko/20100101 Firefox/93.0' \
 	-H 'Accept: application/json, text/javascript, */*; q=0.01' \
 	-H 'Accept-Language: en-US,en;q=0.5' --compressed \
@@ -54,7 +56,7 @@ trainStations=$(curl -s 'https://api.trafikinfo.trafikverket.se/v2/data.json' -X
 	-H 'Sec-Fetch-Site: same-site' \
 	-H 'TE: trailers' \
 	--data-raw $'<REQUEST><LOGIN authenticationkey=\'707695ca4c704c93a80ebf62cf9af7b5\'/><QUERY  lastmodified=\'false\' objecttype=\'TrainStation\' schemaversion=\'1\' includedeletedobjects=\'false\' sseurl=\'false\'><FILTER></FILTER></QUERY></REQUEST>' |
-	jq -c '.RESPONSE.RESULT | .[0] | .TrainStation | .[] | [{(.LocationSignature): .AdvertisedLocationName}] | add ' |
+	jq -c '.RESPONSE.RESULT | .[0] | .TrainStation | .[] | select (.CountyNo[0] == 14) | [{(.LocationSignature): .AdvertisedLocationName}] | add ' |
 	jq -s -r -M add)
 
 curl -s 'https://api.trafikinfo.trafikverket.se/v2/data.json' \
@@ -70,8 +72,8 @@ curl -s 'https://api.trafikinfo.trafikverket.se/v2/data.json' \
 	-H 'Sec-Fetch-Mode: cors' \
 	-H 'Sec-Fetch-Site: same-site' \
 	-H 'TE: trailers' \
-	--data-raw $'<REQUEST><LOGIN authenticationkey=\'707695ca4c704c93a80ebf62cf9af7b5\'/><QUERY  runtime=\'true\' lastmodified=\'true\' objecttype=\'TrainAnnouncement\' schemaversion=\'1.6\' includedeletedobjects=\'false\' sseurl=\'true\'><FILTER><AND><EQ name=\'TrainOwner\' value=\'VASTTRAF\'/>  </AND></FILTER></QUERY></REQUEST>' |
-	jq --argjson trainStations "${trainStations}" --arg today "$(date +%F)" -f "${tempfile}" |
+	--data-raw $'<REQUEST><LOGIN authenticationkey=\'707695ca4c704c93a80ebf62cf9af7b5\'/><QUERY  runtime=\'true\' lastmodified=\'true\' objecttype=\'TrainAnnouncement\' schemaversion=\'1.6\' includedeletedobjects=\'false\' sseurl=\'true\'><FILTER><OR><EQ name=\'TrainOwner\' value=\'VASTTRAF\'/> <EQ name=\'TrainOwner\' value=\'SJ\'/>   </OR></FILTER></QUERY></REQUEST>' |
+	jq --argjson trainStationsInVG "${trainStationsInVG}" --arg today "$(date +%F)" -f "${tempfile}" |
 	jq -s 'sort_by(.delay)' &
 pid=$! # Process ID of the previous command
 spin='◐◓◑◒'
