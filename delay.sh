@@ -28,6 +28,7 @@ def duration($finish; $start):
   | .[0]
   | .TrainAnnouncement
   | .[]
+  | select ( .ProductInformation[0].Description != "SJ Snabbtåg" )
   | select ( .Advertised == true )
   | select ( .TimeAtLocation[:10] == $today ) # only check date YYYY-MM-dd
   | {
