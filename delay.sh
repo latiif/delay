@@ -1,16 +1,27 @@
 #!/usr/bin/env bash
 
-if ! command -v curl &> /dev/null
-then
-    echo -e "'curl' is missing, install it by running:\n\n\t sudo apt-get install curl"
-    exit
+if ! command -v curl &>/dev/null; then
+	echo -e "'curl' is missing, install it by running:\n\n\t sudo apt-get install curl"
+	exit
 fi
 
-if ! command -v jq &> /dev/null
-then
-    echo -e "'jq' is missing, install it by running:\n\n\t sudo apt-get install jq"
-    exit
+if ! command -v jq &>/dev/null; then
+	echo -e "'jq' is missing, install it by running:\n\n\t sudo apt-get install jq"
+	exit
 fi
+
+SORTBY=".delay"
+while getopts sad opt; do
+	case $opt in
+	a) SORTBY=".actual" ;;
+	d) SORTBY=".delay" ;;
+	s) SORTBY=".should" ;;
+	\?)
+		echo "Unknown option -$OPTARG"
+		exit 1
+		;;
+	esac
+done
 
 tempfile=$(mktemp)
 cat <<'EOT' >${tempfile}
@@ -94,7 +105,7 @@ curl -s 'https://api.trafikinfo.trafikverket.se/v2/data.json' \
 	-H 'TE: trailers' \
 	--data-raw $'<REQUEST><LOGIN authenticationkey=\'707695ca4c704c93a80ebf62cf9af7b5\'/><QUERY  runtime=\'true\' lastmodified=\'true\' objecttype=\'TrainAnnouncement\' schemaversion=\'1.6\' includedeletedobjects=\'false\' sseurl=\'true\'><FILTER><OR><EQ name=\'TrainOwner\' value=\'VASTTRAF\'/> <EQ name=\'TrainOwner\' value=\'SJ\'/>   </OR></FILTER></QUERY></REQUEST>' |
 	jq --argjson trainStations "${trainStations}" --argjson trainStationsInVG "${trainStationsInVG}" --arg today "$(date +%F)" -f "${tempfile}" |
-	jq -s 'sort_by(.delay)' &
+	jq -s "sort_by(${SORTBY})" &
 pid=$! # Process ID of the previous command
 spin='◐◓◑◒'
 i=0
