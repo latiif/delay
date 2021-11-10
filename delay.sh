@@ -39,6 +39,7 @@ def duration($finish; $start):
   | .[0]
   | .TrainAnnouncement
   | .[]
+  | select ( .ActivityType == "Ankomst" )
   | select ( .ProductInformation[0].Description != "SJ Snabbtåg" )
   | select ( .ProductInformation[0].Description != "SJ Nattåg" )
   | select ( .Advertised == true )
