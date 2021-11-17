@@ -17,7 +17,7 @@ while getopts sadt opt; do
 	a) SORTBY=".actual" ;;
 	d) SORTBY=".delay" ;;
 	s) SORTBY=".should" ;;
-	t) PRESENTATION_FILTER="group_by(.link) | .[] | max_by(.delay)" ;;
+	t) PRESENTATION_FILTER="[ group_by(.link) | .[] | max_by(.delay) ]" ;;
 	\?)
 		echo "Unknown option -$OPTARG"
 		exit 1
@@ -108,7 +108,7 @@ curl -s 'https://api.trafikinfo.trafikverket.se/v2/data.json' \
 	-H 'TE: trailers' \
 	--data-raw $'<REQUEST><LOGIN authenticationkey=\'707695ca4c704c93a80ebf62cf9af7b5\'/><QUERY  runtime=\'true\' lastmodified=\'true\' objecttype=\'TrainAnnouncement\' schemaversion=\'1.6\' includedeletedobjects=\'false\' sseurl=\'true\'><FILTER><OR><EQ name=\'TrainOwner\' value=\'VASTTRAF\'/> <EQ name=\'TrainOwner\' value=\'SJ\'/>   </OR></FILTER></QUERY></REQUEST>' |
 	jq --argjson trainStations "${trainStations}" --argjson trainStationsInVG "${trainStationsInVG}" --arg today "$(date +%F)" -f "${tempfile}" |
-	jq -s "sort_by(${SORTBY}) | ${PRESENTATION_FILTER}" &
+	jq -s "${PRESENTATION_FILTER} | sort_by(${SORTBY})" &
 pid=$! # Process ID of the previous command
 spin='◐◓◑◒'
 i=0
