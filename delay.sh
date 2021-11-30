@@ -12,12 +12,14 @@ fi
 
 SORTBY=".delay"
 PRESENTATION_FILTER="."
-while getopts sadt opt; do
+THRESHOLD=19
+while getopts sadtm: opt; do
 	case $opt in
 	a) SORTBY=".actual" ;;
 	d) SORTBY=".delay" ;;
 	s) SORTBY=".should" ;;
 	t) PRESENTATION_FILTER="[ group_by(.link) | .[] | max_by(.delay) ]" ;;
+    m) THRESHOLD=$((OPTARG));;
 	\?)
 		echo "Unknown option -$OPTARG"
 		exit 1
@@ -56,7 +58,7 @@ def duration($finish; $start):
     link: "https://www.trafikverket.se/trafikinformation/tag/?Train=\(.AdvertisedTrainIdent)"
   }
   | select ( .location != null )
-  | select ( .delay >= 19 )
+  | select ( .delay >= ( $threshold | tonumber ) )
 EOT
 
 trainStationsInVG=$(curl -s 'https://api.trafikinfo.trafikverket.se/v2/data.json' -X POST \
@@ -107,7 +109,7 @@ curl -s 'https://api.trafikinfo.trafikverket.se/v2/data.json' \
 	-H 'Sec-Fetch-Site: same-site' \
 	-H 'TE: trailers' \
 	--data-raw $'<REQUEST><LOGIN authenticationkey=\'707695ca4c704c93a80ebf62cf9af7b5\'/><QUERY  runtime=\'true\' lastmodified=\'true\' objecttype=\'TrainAnnouncement\' schemaversion=\'1.6\' includedeletedobjects=\'false\' sseurl=\'true\'><FILTER><OR><EQ name=\'TrainOwner\' value=\'VASTTRAF\'/> <EQ name=\'TrainOwner\' value=\'SJ\'/>   </OR></FILTER></QUERY></REQUEST>' |
-	jq --argjson trainStations "${trainStations}" --argjson trainStationsInVG "${trainStationsInVG}" --arg today "$(date +%F)" -f "${tempfile}" |
+    jq --argjson trainStations "${trainStations}" --argjson trainStationsInVG "${trainStationsInVG}" --arg today "$(date +%F)" --arg threshold $((THRESHOLD)) -f "${tempfile}" |
 	jq -s "${PRESENTATION_FILTER} | sort_by(${SORTBY})" &
 pid=$! # Process ID of the previous command
 spin='◐◓◑◒'
