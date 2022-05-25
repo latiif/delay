@@ -50,6 +50,7 @@ def duration($finish; $start):
   | select ( .TimeAtLocation[:10] == $today ) # only check date YYYY-MM-dd
   | {
     owner: .TrainOwner,
+    canceled: .Canceled,
     delay: duration(.TimeAtLocation; .AdvertisedTimeAtLocation),
     should: .AdvertisedTimeAtLocation[11:-13], # only display HH:mm
     actual: .TimeAtLocation[11:-13], # only display HH:mm
@@ -58,7 +59,8 @@ def duration($finish; $start):
     link: "https://www.trafikverket.se/trafikinformation/tag/?Train=\(.AdvertisedTrainIdent)"
   }
   | select ( .location != null )
-  | select ( .delay >= ( $threshold | tonumber ) )
+  | select ( .delay >= ( $threshold | tonumber ) or .canceled )
+  | if (.canceled) then del (.delay, .actual) else del (.canceled) end
 EOT
 
 trainStationsInVG=$(curl -s 'https://api.trafikinfo.trafikverket.se/v2/data.json' -X POST \
