@@ -19,7 +19,7 @@ while getopts sadtm: opt; do
 	d) SORTBY=".delay" ;;
 	s) SORTBY=".should" ;;
 	t) PRESENTATION_FILTER="[ group_by(.link) | .[] | max_by(.delay) ]" ;;
-    m) THRESHOLD=$((OPTARG));;
+	m) THRESHOLD=$((OPTARG)) ;;
 	\?)
 		echo "Unknown option -$OPTARG"
 		exit 1
@@ -97,6 +97,8 @@ trainStations=$(curl -s 'https://api.trafikinfo.trafikverket.se/v2/data.json' -X
 	jq -c '.RESPONSE.RESULT | .[0] | .TrainStation | .[] | [{(.LocationSignature): .AdvertisedLocationName}] | add ' |
 	jq -s -r -M add)
 
+trainStationsInVGFilter=$(echo $trainStationsInVG | jq --raw-output 'keys | .[] | "<EQ name='\''LocationSignature'\'' value='\''\(.)'\''/>"' | tr '\n' ' ')
+
 curl -s 'https://api.trafikinfo.trafikverket.se/v2/data.json' \
 	-H 'User-Agent: Mozilla/5.0 (X11; Ubuntu; Linux x86_64; rv:90.0) Gecko/20100101 Firefox/90.0' \
 	-H 'Accept: application/json, text/javascript, */*; q=0.01' \
@@ -110,8 +112,8 @@ curl -s 'https://api.trafikinfo.trafikverket.se/v2/data.json' \
 	-H 'Sec-Fetch-Mode: cors' \
 	-H 'Sec-Fetch-Site: same-site' \
 	-H 'TE: trailers' \
-	--data-raw $'<REQUEST><LOGIN authenticationkey=\'707695ca4c704c93a80ebf62cf9af7b5\'/><QUERY  runtime=\'true\' lastmodified=\'true\' objecttype=\'TrainAnnouncement\' schemaversion=\'1.6\' includedeletedobjects=\'false\' sseurl=\'true\'><FILTER><OR><EQ name=\'TrainOwner\' value=\'VASTTRAF\'/> <EQ name=\'TrainOwner\' value=\'SJ\'/>   </OR></FILTER></QUERY></REQUEST>' |
-    jq --argjson trainStations "${trainStations}" --argjson trainStationsInVG "${trainStationsInVG}" --arg today "$(date +%F)" --arg threshold $((THRESHOLD)) -f "${tempfile}" |
+	--data-raw "<REQUEST><LOGIN authenticationkey='707695ca4c704c93a80ebf62cf9af7b5'/><QUERY runtime='true' lastmodified='true' objecttype='TrainAnnouncement' schemaversion='1.6' includedeletedobjects='false' sseurl='true'><FILTER><AND><OR>${trainStationsInVGFilter}</OR> <EQ name='ScheduledDepartureDateTime' value='$(date +%F)T00:00:00+01:00'/><OR><EQ name='TrainOwner' value='VASTTRAF'/> <EQ name='TrainOwner' value='SJ'/> </OR></AND></FILTER></QUERY></REQUEST>" |
+	jq --argjson trainStations "${trainStations}" --argjson trainStationsInVG "${trainStationsInVG}" --arg today "$(date +%F)" --arg threshold $((THRESHOLD)) -f "${tempfile}" |
 	jq -s "${PRESENTATION_FILTER} | sort_by(${SORTBY})" &
 pid=$! # Process ID of the previous command
 spin='◐◓◑◒'
